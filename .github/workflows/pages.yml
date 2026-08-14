@@ -1,0 +1,42 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Страница уходит заказчику: финансовых данных в ней быть не должно.
+      # Проверка идёт до публикации и роняет сборку, а не предупреждает.
+      - name: Проверить, что в отчёте нет денег
+        run: |
+          if grep -qE '₽|\bруб[а-я.]*\b' site/index.html; then
+            echo "::error::В site/index.html найдены денежные значения — публикация остановлена."
+            grep -onE '.{0,60}(₽|\bруб[а-я.]*\b).{0,60}' site/index.html | head -5
+            exit 1
+          fi
+          echo "Финансовых данных не найдено."
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
