@@ -8,7 +8,7 @@
 
 ## Публикация
 
-**Settings → Pages → Source → GitHub Actions.** Дальше каждый push в `main`
+**Settings → Pages → Source → GitHub Actions.** Дальше каждый push в `develop`
 пересобирает сайт: `.github/workflows/pages.yml` публикует содержимое `site/`.
 
 Адрес: `https://antinlay.github.io/schedbook-client-report/`
@@ -42,7 +42,7 @@ Push сам запускает workflow, через минуту страниц�
 2. Добавить в него отправку JSON в этот репозиторий через GitHub API
    (`PUT /repos/antinlay/schedbook-client-report/contents/source/report-data.json`)
    с токеном в Script Properties.
-3. Коммит в `main` запустит workflow, и страница пересоберётся.
+3. Коммит в `develop` запустит workflow, и страница пересоберётся.
 
 Тогда цепочка «работа → реестр → отчёт заказчику» замкнётся полностью.
 Пока этот шаг не сделан, обновление ручное — две команды выше.
