@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Собирает страницу отчёта из исходника в самостоятельный HTML.
 
-Исходник `source/report.html` — фрагмент: заголовок, стили, разметка и данные.
+Исходник `source/report.html` — шаблон: заголовок, стили, разметка и скрипт.
+Данные подставляются сюда из `source/report-data.json` в присваивание
+`const DATA`, поэтому единственный источник правды — json, а не копия массива
+внутри шаблона.
+
 Здесь к нему добавляется то, чего в нём нет: doctype, charset, viewport, favicon
 и сброс стилей. Без charset кириллица превращается в кракозябры, без viewport
 телефон рисует страницу в десктопной ширине.
@@ -9,13 +13,18 @@
     python3 build.py
 """
 
+import json
 import pathlib
 import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 SOURCE = HERE / "source" / "report.html"
+DATA = HERE / "source" / "report-data.json"
 TARGET = HERE / "site" / "index.html"
+
+# Присваивание, в которое подставляются данные. Хвост `;` остаётся в шаблоне.
+DATA_RE = re.compile(r"(const DATA = )(\[.*?\])(;\n)", re.S)
 
 EMOJI = "📗"
 DESCRIPTION = "Отчёт о выполненных работах по неделям."
@@ -42,6 +51,22 @@ def favicon(emoji: str) -> str:
 
 def main() -> int:
     body = SOURCE.read_text(encoding="utf-8")
+
+    try:
+        data = json.loads(DATA.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        print(f"{DATA.name}: файла нет", file=sys.stderr)
+        return 1
+    except json.JSONDecodeError as error:
+        print(f"{DATA.name}: сломан json — {error}", file=sys.stderr)
+        return 1
+
+    if not DATA_RE.search(body):
+        print(f"{SOURCE.name}: не найдено присваивание `const DATA = [...];`", file=sys.stderr)
+        return 1
+
+    rendered = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    body = DATA_RE.sub(lambda m: m.group(1) + rendered + m.group(3), body, count=1)
 
     match = re.search(r"<title>(.*?)</title>", body)
     if not match:
@@ -70,7 +95,10 @@ def main() -> int:
 
     TARGET.parent.mkdir(parents=True, exist_ok=True)
     TARGET.write_text(html, encoding="utf-8")
-    print(f"{TARGET.relative_to(HERE)}: {len(html) // 1024} КБ, финансовых данных нет")
+    print(
+        f"{TARGET.relative_to(HERE)}: {len(html) // 1024} КБ, "
+        f"соглашений {len(data)}, финансовых данных нет"
+    )
     return 0
 
 
