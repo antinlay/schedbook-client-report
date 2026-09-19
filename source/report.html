@@ -136,7 +136,22 @@
   }
   .work > summary::-webkit-details-marker { display: none; }
   .work > summary:focus-visible { outline: 2px solid var(--indigo); outline-offset: -2px; }
+  .w-head { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  /* Сводка по задачам соглашения: план из ДС против принятого факта. */
+  .tasks { display: flex; flex-direction: column; gap: 8px; margin: 0 0 22px; padding: 0; list-style: none; }
+  .task {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
+    padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline;
+  }
+  .t-name { font-size: 15px; font-weight: 620; letter-spacing: -.01em; line-height: 1.35; }
+  .t-fact { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .t-plan { grid-column: 1; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .t-dev { grid-column: 2; font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink-3); }
+  .t-over { color: var(--indigo); font-weight: 650; }
   .w-title { font-size: 16px; font-weight: 650; letter-spacing: -.015em; line-height: 1.35; }
+  /* План по задаче показывается только там, где он есть в соглашении построчно. */
+  .w-plan { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .w-over { color: var(--indigo); font-weight: 650; }
   .w-time {
     font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
     background: var(--lime-soft); color: var(--ink); border-radius: 999px; padding: 4px 10px;
@@ -193,6 +208,12 @@
   <h2>План и факт</h2>
   <p class="sub" id="pf-sub"></p>
   <div class="rings"><div class="ring-card" id="pf"></div></div>
+
+  <section id="tasks-block" hidden>
+    <h2>Задачи соглашения</h2>
+    <p class="sub" id="tasks-sub"></p>
+    <ul class="tasks" id="tasks"></ul>
+  </section>
 
   <h2>Недели</h2>
   <p class="sub" id="weeks-sub"></p>
@@ -281,6 +302,25 @@ function renderAgreement(a) {
         : "Ровно по плану."}</p>
     </div>`;
 
+  /* --- задачи соглашения: план из ДС против факта --- */
+  const block = document.getElementById("tasks-block");
+  block.hidden = !a.taskTotals;
+  if (a.taskTotals) {
+    document.getElementById("tasks-sub").textContent =
+      `${plural(a.taskTotals.length, "задача", "задачи", "задач")} из соглашения: ` +
+      `план и фактически затраченное время.`;
+    document.getElementById("tasks").innerHTML = a.taskTotals.map(t => {
+      const d = t.minutes - t.planMinutes;
+      return `<li class="task">
+        <span class="t-name">${esc(t.title)}</span>
+        <span class="t-fact">${hhmm(t.minutes)}</span>
+        <span class="t-plan">План ${hhmm(t.planMinutes)}</span>
+        <span class="t-dev">${d > 0 ? `<span class="t-over">больше на ${hhmm(d)}</span>`
+          : d < 0 ? `меньше на ${hhmm(-d)}` : "ровно по плану"}</span>
+      </li>`;
+    }).join("");
+  }
+
   /* --- недели --- */
   document.getElementById("weeks-sub").textContent =
     `${plural(a.weeks.length, "неделя", "недели", "недель")}, доля каждой от ${hhmm(a.minutes)} за соглашение.`;
@@ -304,15 +344,17 @@ function renderWeek(w) {
   document.getElementById("week-sub").textContent =
     `${plural(w.tasks.length, "направление", "направления", "направлений")} работ. Нажмите, чтобы раскрыть подробности.`;
 
-  document.getElementById("works").innerHTML = w.tasks.map(t => `<details class="work">
+  document.getElementById("works").innerHTML = w.tasks.map(t => {
+    return `<details class="work">
       <summary>
-        <span class="w-title">${esc(t.title)}</span>
+        <span class="w-head"><span class="w-title">${esc(t.title)}</span></span>
         <span class="w-time">${hhmm(t.minutes)}</span>
         <span class="w-chev" aria-hidden="true"></span>
       </summary>
       <p class="w-body${t.changes.trim() ? "" : " w-empty"}">${t.changes.trim()
         ? rich(t.changes) : "На этой неделе работа не велась."}</p>
-    </details>`).join("");
+    </details>`;
+  }).join("");
 
   document.getElementById("total").textContent = hhmm(w.minutes);
   setExpandLabel();
